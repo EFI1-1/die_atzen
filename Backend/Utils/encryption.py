@@ -23,6 +23,20 @@ key = kdf.derive(password)  # Derive the AES key from the password and salt usin
 
 # Encrypt function
 def Encrypt(message: str) -> str:
+    """
+    Encrypts a UTF-8 string using AES-256 in CBC mode with PKCS7 padding.
+
+    The function derives a 256-bit AES key from a predefined password and salt using PBKDF2,
+    then uses a randomly generated IV (Initialization Vector) for each encryption to ensure 
+    ciphertext uniqueness. The IV and ciphertext are combined and base64 encoded for easy storage or transmission.
+
+    Args:
+        message (str): The plaintext message to encrypt.
+
+    Returns:
+        str: The base64-encoded string containing the IV and ciphertext.
+    """
+    
     # Convert string to bytes, since encryption operates on bytes, not text
     data = message.encode('utf-8')
 
@@ -46,6 +60,20 @@ def Encrypt(message: str) -> str:
 
 # Decrypt function
 def Decrypt(encryptedMessage: str) -> str:
+    """
+    Decrypts a base64-encoded string that was encrypted with AES-256 in CBC mode.
+
+    This function expects the input to contain the concatenated IV and ciphertext,
+    base64-encoded. It decodes the input, extracts the IV, decrypts the ciphertext,
+    and removes PKCS7 padding to return the original plaintext.
+
+    Args:
+        encryptedMessage (str): The base64-encoded encrypted message containing IV and ciphertext.
+
+    Returns:
+        str: The decrypted plaintext message.
+    """
+    
     # Decode the base64-encoded input to raw bytes
     raw_data = b64decode(encryptedMessage)
 
