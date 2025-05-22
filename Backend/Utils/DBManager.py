@@ -20,11 +20,10 @@ class DBManager:
         """
         Ensures the existence of two main tables: 'values' and 'saves'.
 
-        - 'values': Stores metadata records with a Name and Key.
-        - 'saves': Stores actual saved entries linked to a Value via foreign key.
+        - 'values': stores users password-records with a Name and Key.
+        - 'saves': stores saves
 
         Also:
-        - Enforces foreign key constraints.
         - Inserts a default user entry if one doesn't already exist.
         """
 
@@ -47,10 +46,10 @@ class DBManager:
                 SaveId INTEGER PRIMARY KEY AUTOINCREMENT,
                 ValueId INTEGER NOT NULL,
                 Name TEXT NOT NULL,
-                Value TEXT NOT NULL,
-                FOREIGN KEY (ValueId) REFERENCES "values" (ValueId) ON DELETE CASCADE
+                Value TEXT NOT NULL
             )
         """
+
         self.connection.execute(create_saves_table)
 
         # Check if a default 'user' save already exists
@@ -58,19 +57,10 @@ class DBManager:
         exists = cursor.fetchone()[0] > 0
 
         if not exists:
-            # Insert a default entry in 'values' table
-            cursor = self.connection.execute(
-                'INSERT INTO "values" (Name, Key) VALUES (?, ?)',
-                ("default_user_entry", "system_generated")
-            )
-
-            # Get the ID of the inserted value using SQLite's last insert rowid
-            default_value_id = self.connection.execute('SELECT last_insert_rowid()').fetchone()[0]
-
             # Insert a corresponding save record for the default user
             self.connection.execute(
                 'INSERT INTO saves (ValueId, Name, Value) VALUES (?, ?, ?)',
-                (default_value_id, "user", "passwort")
+                (1, "user", "passwort")
             )
 
         # Commit all changes to make them persistent in the database

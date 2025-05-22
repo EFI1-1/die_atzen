@@ -1,8 +1,13 @@
+# Program initilization
+
 from Backend.Utils.DBManager import DBManager
+from Backend.Utils.Encryption import Encryption
 from Backend.Value import Value
 from Backend.ProgramSettings import ProgramSettings
 
 ### Testing ###
+
+entered_password = ""
 
 # Create database
 db = DBManager()
@@ -10,12 +15,13 @@ db = DBManager()
 # Update settings
 # Get users saved password from db
 user_enc_password = db.GetSave(1)
+print(user_enc_password)
 # decrypt saved password and use default encryption value
 #ProgramSettings.CRYPTKEY = ProgramSettings.DEFAULT_CRYPT_KEY
-#user_enc_password = encryption.Decrypt(user_enc_password)
+#user_enc_password = Encryption.Decrypt(user_enc_password)
 # check entered password with user_enc_password
-#if enteredPassword == user_enc_password:
-#    # Set crypt key to user_enc_password:
+#if entered_password == user_enc_password:
+    # Set crypt key to user_enc_password:
 #    ProgramSettings.CRYPT_KEY = user_enc_password
 #else:
 #    print("Does not match")
