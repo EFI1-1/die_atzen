@@ -7,24 +7,24 @@ from Backend.ProgramSettings import ProgramSettings
 
 ### Testing ###
 
-entered_password = ""
+entered_password = "passwort"
 
 # Create database
 db = DBManager()
+encryption = Encryption()
 
 # Update settings
 # Get users saved password from db
 user_enc_password = db.GetSave(1)
-print(user_enc_password)
 # decrypt saved password and use default encryption value
-#ProgramSettings.CRYPTKEY = ProgramSettings.DEFAULT_CRYPT_KEY
-#user_enc_password = Encryption.Decrypt(user_enc_password)
+ProgramSettings.CRYPTKEY = ProgramSettings.DEFAULT_CRYPT_KEY
+user_enc_password = encryption.Decrypt(user_enc_password)
 # check entered password with user_enc_password
-#if entered_password == user_enc_password:
+if entered_password == user_enc_password:
     # Set crypt key to user_enc_password:
-#    ProgramSettings.CRYPT_KEY = user_enc_password
-#else:
-#    print("Does not match")
+    ProgramSettings.CRYPT_KEY = user_enc_password
+else:
+    print("Does not match")
 
 # Create value
 someValue = Value(0, "Test", "Something")

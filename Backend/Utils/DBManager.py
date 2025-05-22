@@ -60,7 +60,7 @@ class DBManager:
             # Insert a corresponding save record for the default user
             self.connection.execute(
                 'INSERT INTO saves (ValueId, Name, Value) VALUES (?, ?, ?)',
-                (1, "user", "passwort")
+                (1, "user", "7ZCsDFCTYGYFYWxADFBAJ1ZtjPZYVWNEVhj1J+++O5I=")
             )
 
         # Commit all changes to make them persistent in the database
