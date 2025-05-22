@@ -22,7 +22,8 @@ class Encryption:
             iterations=100000,                      # Number of iterations increases computation cost to resist brute-force attacks
             backend=default_backend()               # Default backend provides cryptographic primitives
         )
-        self.key = self.kdf.derive(ProgramSettings.CRYPT_KEY)  # Derive the AES key from the password and salt using PBKDF2
+        
+        self.key = self.kdf.derive(ProgramSettings.CRYPT_KEY.encode('utf-8'))  # Derive the AES key from the password and salt using PBKDF2
 
     # Encrypt function
     def Encrypt(self, message: str) -> str:
