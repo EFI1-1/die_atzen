@@ -4,6 +4,7 @@ from Backend.Utils.DBManager import DBManager
 from Backend.Utils.Encryption import Encryption
 from Backend.ProgramSettings import ProgramSettings
 from Backend.Utils.ToolHelper import ToolHelper
+from Backend.Utils.PasswordSafety import PasswordSafety
 
 # Funktion zum Zentrieren des Fensters auf dem Bildschirm
 def center_window(window, width=300, height=180):
@@ -17,10 +18,11 @@ def center_window(window, width=300, height=180):
 
 class GUI:
     # Erstellt das Hauptfenster und initialisiert die GUI
-    def __init__(self, dbManager: DBManager, encryption: Encryption, toolHelper: ToolHelper):
+    def __init__(self, dbManager: DBManager, encryption: Encryption, toolHelper: ToolHelper, passwordSafety: PasswordSafety):
         self.db = dbManager
         self.encryption = encryption
         self.toolHelper = toolHelper
+        self.passwordSafety = passwordSafety
         self.show_password_var = None
         self.password_entry = None
         self.root = tk.Tk()
@@ -206,16 +208,22 @@ class GUI:
         site = site_entry.get()
         pw = pw_entry.get()
 
+        # Check if user has entered a site and password
         if not site or not pw:
             messagebox.showwarning("Fehler", "Bitte Seite und Passwort angeben.")
             return
 
+        # Check if password passes 'password-safety'-check
+        if not self.passwordSafety.Check(pw):
+            return
+
+        # Check if entered site already exists in the database
         if self.db.tableValues_GetValue(site):
             messagebox.showwarning("Fehler", "Dieses Feld existiert bereits!")
             return
 
         password_encrypted = self.encryption.Encrypt(pw)
-        self.db.CreateValue(site, password_encrypted)
+        self.db.tableValues_CreateValue(site, password_encrypted)
 
         self.password_list.append((site, pw))
         update_password_list()

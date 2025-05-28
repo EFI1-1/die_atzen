@@ -65,7 +65,7 @@ class DBManager:
         # Commit all changes to make them persistent in the database
         self.connection.commit()
 
-    def CreateValue(self, name: str, key: str) -> int:
+    def tableValues_CreateValue(self, name: str, key: str) -> int:
         """
         Inserts a new row into the 'values' table.
 
