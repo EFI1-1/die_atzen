@@ -43,13 +43,13 @@ class ToolHelper:
         # Encrypt new user password
         new_user_password_encrypted = self.encryption.Encrypt(new_user_password)
         # Get old user password from database
-        old_user_password_encrypted = self.db.GetSave(1)
+        old_user_password_encrypted = self.db.tableSaves_GetSave(1)
         # Decrypt old user password
         old_user_password = self.encryption.Decrypt(old_user_password_encrypted)
         # Update new user password in database with encrypted password
-        self.db.UpdateSave(1, "user", new_user_password_encrypted)
+        self.db.tableSaves_UpdateSave(1, "user", new_user_password_encrypted)
         # Recrypt all values in database table 'values' with new user password
-        self.RecryptValues(old_user_password, new_user_password)
+        return self.RecryptValues(old_user_password, new_user_password)
 
     def RecryptValues(self, crypt_key_old, crypt_key_new) -> bool:
         """
@@ -68,7 +68,7 @@ class ToolHelper:
             bool: True if all values were successfully re-encrypted, False otherwise.
         """
 
-        all_values: Value = self.db.GetAllValues()
+        all_values: Value = self.db.tableValues_GetAllValues()
         for value in all_values:
             # Decrypt value with old crypt key
             ProgramSettings.CRYPT_KEY = crypt_key_old
@@ -79,6 +79,7 @@ class ToolHelper:
             value.key = self.encryption.Encrypt(value.key)
 
             # Update value in db
-            self.db.SaveValue(value)
+            self.db.tableValues_SaveValue(value)
         # Ensure crypt key is set to new user password
         ProgramSettings.CRYPT_KEY = crypt_key_new
+        return True

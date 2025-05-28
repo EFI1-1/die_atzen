@@ -81,7 +81,7 @@ class DBManager:
         self.connection.commit()
         return cursor.lastrowid  # Return the auto-generated ValueId
 
-    def SaveValue(self, value: Value) -> bool:
+    def tableValues_SaveValue(self, value: Value) -> bool:
         """
         Updates an existing row in the 'values' table.
 
@@ -95,6 +95,15 @@ class DBManager:
         cursor = self.connection.execute(update_query, (value.name, value.key, value.id))
         self.connection.commit()
         return cursor.rowcount > 0  # rowcount > 0 means successful update
+    
+    def tableValues_GetValue(self, name: str) -> str:
+        resultValue = ""
+        update_query = 'SELECT * FROM "values" WHERE Name = ?'
+        cursor = self.connection.execute(update_query, (name))
+        self.connection.commit()
+        for row in cursor:
+            resultValue = row[0]
+        return resultValue
 
     def DeleteValue(self, value: Value) -> bool:
         """
@@ -111,7 +120,7 @@ class DBManager:
         self.connection.commit()
         return cursor.rowcount > 0  # rowcount > 0 means delete occurred
 
-    def GetAllValues(self) -> list[Value]:
+    def tableValues_GetAllValues(self) -> list[Value]:
         """
         Retrieves all rows from the 'values' table and constructs Value objects.
 
@@ -128,7 +137,7 @@ class DBManager:
 
         return values_list
 
-    def UpdateSave(self, save_id: int, name: str, value: str) -> bool:
+    def tableSaves_UpdateSave(self, save_id: int, name: str, value: str) -> bool:
         """
         Updates a row in the 'saves' table by its SaveId.
 
@@ -145,7 +154,7 @@ class DBManager:
         self.connection.commit()
         return cursor.rowcount > 0  # rowcount > 0 means successful update
 
-    def GetSave(self, save_id: int) -> str | None:
+    def tableSaves_GetSave(self, save_id: int) -> str | None:
         """
         Retrieves the 'Value' field from a save record.
 

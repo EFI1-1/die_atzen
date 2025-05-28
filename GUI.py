@@ -1,5 +1,10 @@
-import tkinter as tk # GUI-Bibliothek
-from tkinter import messagebox # Dialoge
+import tkinter as tk  # GUI-Bibliothek
+from tkinter import messagebox  # Dialoge
+from Backend.Utils.DBManager import DBManager
+from Backend.Utils.Encryption import Encryption
+from Backend.ProgramSettings import ProgramSettings
+from Backend.Value import Value
+from Backend.Utils.ToolHelper import ToolHelper
 
 # Funktion zum Zentrieren des Fensters auf dem Bildschirm
 def center_window(window, width=300, height=180):
@@ -10,76 +15,13 @@ def center_window(window, width=300, height=180):
     y = (screen_height // 2) - (height // 2)
     window.geometry(f"{width}x{height}+{x}+{y}")
 
-def open_change_password_page(main_page):
-    change_pw_page = tk.Toplevel(main_page)
-    change_pw_page.title("Passwort ändern")
-    
-    center_window(change_pw_page, 350, 280)
-
-    current_label = tk.Label(change_pw_page, text="Aktuelles Passwort:")
-    current_label.pack(pady=(20, 0))
-    current_entry = tk.Entry(change_pw_page, show='*', width=25)
-    current_entry.pack()
-
-    new_label = tk.Label(change_pw_page, text="Neues Passwort:")
-    new_label.pack(pady=(10, 0))
-    new_entry = tk.Entry(change_pw_page, show='*', width=25)
-    new_entry.pack()
-
-    confirm_label = tk.Label(change_pw_page, text="Neues Passwort bestätigen:")
-    confirm_label.pack(pady=(10, 0))
-    confirm_entry = tk.Entry(change_pw_page, show='*', width=25)
-    confirm_entry.pack()
-
-    show_pw_var = tk.IntVar()
-    
-    def toggle_pw():
-        show = '' if show_pw_var.get() else '*'
-        new_entry.config(show=show)
-        
-    show_pw = tk.Checkbutton(change_pw_page, text="Passwörter zeigen", variable=show_pw_var, command=toggle_pw)
-    show_pw.pack()
-
-    button_frame = tk.Frame(change_pw_page)
-    button_frame.pack(pady=10)
-
-    def change_password():
-        curr = current_entry.get()
-        new = new_entry.get()
-        confirm = confirm_entry.get()
-
-        # Hier sollte eine echte Passwortprüfung stattfinden "admin nur ein Platzhalter"
-        if curr != "admin":
-            messagebox.showwarning("Fehler", "Aktuelles Passwort ist falsch.")
-            return
-        if not new or not confirm:
-            messagebox.showwarning("Fehler", "Bitte alle Felder ausfüllen.")
-            return
-        if new != confirm:
-            messagebox.showwarning("Fehler", "Neue Passwörter stimmen nicht überein.")
-            return
-
-        messagebox.showinfo("Erfolg", "Passwort wurde geändert.")
-        change_pw_page.destroy()
-
-    def cancel():
-        change_pw_page.destroy()
-
-    change_btn = tk.Button(button_frame, text="Ändern", command=change_password)
-    change_btn.pack(side="left", padx=5)
-
-    cancel_btn = tk.Button(button_frame, text="Abbrechen", command=cancel)
-    cancel_btn.pack(side="left", padx=5)
-
-    def on_close():
-        change_pw_page.destroy()
-
-    change_pw_page.protocol("WM_DELETE_WINDOW", on_close)
-
 
 class GUI:
     # Erstellt das Hauptfenster und initialisiert die GUI
-    def __init__(self):
+    def __init__(self, dbManager: DBManager, encryption: Encryption, toolHelper: ToolHelper):
+        self.db = dbManager
+        self.encryption = encryption
+        self.toolHelper = toolHelper
         self.show_password_var = None
         self.password_entry = None
         self.root = tk.Tk()
@@ -88,8 +30,6 @@ class GUI:
         self.password_list = []
         self.show_login_page()
         self.root.mainloop()
-
-    # Zentriert das Fenster auf dem Bildschirm
 
     def show_login_page(self):
         self.root.deiconify()
@@ -128,11 +68,20 @@ class GUI:
         if password == "":
             messagebox.showwarning("Warnung", "Bitte Passwort eingeben.")
         else:
-            # Hier ggf. Passwortprüfung einbauen
-            self.show_main_page()
+            db_user_password = self.db.tableSaves_GetSave(1)
+            db_user_password = self.encryption.Decrypt(db_user_password)
+            if password == db_user_password:
+                ProgramSettings.CRYPT_KEY = db_user_password
+                encrypted_value_list = self.db.tableValues_GetAllValues()
+                self.password_list = [
+                    (value.name, self.encryption.Decrypt(value.key))
+                    for value in encrypted_value_list
+                ]
+                self.show_main_page()
+            else:
+                messagebox.showwarning("Falsches Passwort", "Das eingegebene Passwort ist nicht korrekt!")
 
     def show_main_page(self):
-        # Hauptseite mit Passwortverwaltung
         main_page = tk.Toplevel(self.root)
         main_page.title("Passwort Manager")
         center_window(main_page, 600, 280)
@@ -140,12 +89,11 @@ class GUI:
         main_page.focus_force()
         self.root.withdraw()
 
-        change_pw_btn = tk.Button(main_page, text="Passwort ändern", command=lambda: open_change_password_page(main_page), width=20)
+        change_pw_btn = tk.Button(main_page, text="Passwort ändern", command=lambda: self.open_change_password_page(main_page), width=20)
         change_pw_btn.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
         main_page.protocol("WM_DELETE_WINDOW", lambda: self.on_main_page_close(main_page))
 
-        # Bereich zum Hinzufügen neuer Passwörter
         add_frame = tk.Frame(main_page)
         add_frame.pack(pady=20)
 
@@ -161,22 +109,97 @@ class GUI:
         pw_entry = tk.Entry(add_frame, width=20, show='*')
         pw_entry.grid(row=0, column=3, padx=5)
 
-        plus_button = tk.Button(add_frame, text="+", command=lambda: self.add_password(site_entry, pw_entry, lambda: self.update_password_list(listbox)), width=3)
+        plus_button = tk.Button(add_frame, text="+", command=lambda: self.add_password(site_entry, pw_entry, lambda: self.update_password_list(self.listbox)), width=3)
         plus_button.grid(row=0, column=4, padx=5)
 
         list_frame = tk.Frame(main_page)
         list_frame.pack(pady=(0, 10))
 
-        listbox = tk.Listbox(list_frame, width=60)
-        listbox.pack()
+        self.listbox = tk.Listbox(list_frame, width=60)
+        self.listbox.pack()
 
-        # Funktion zum Aktualisieren der Passwortliste in der Listbox
-        self.update_password_list(listbox)
+        self.update_password_list(self.listbox)
+        self.listbox.bind('<Double-Button-1>', lambda event: self.on_listbox_double_click(self.listbox, main_page))
 
-        # Bindet das Doppelklicken auf die Listbox
-        listbox.bind('<Double-Button-1>', lambda event: self.on_listbox_double_click(listbox, main_page))
         logout_button = tk.Button(main_page, text="Abmelden", command=lambda: self.logout(main_page), width=20)
         logout_button.place(relx=0.0, rely=1.0, anchor="sw", x=10, y=-10)
+
+    def open_change_password_page(self, main_page):
+        change_pw_page = tk.Toplevel(main_page)
+        change_pw_page.title("Passwort ändern")
+        center_window(change_pw_page, 350, 280)
+
+        current_label = tk.Label(change_pw_page, text="Aktuelles Passwort:")
+        current_label.pack(pady=(20, 0))
+        current_entry = tk.Entry(change_pw_page, show='*', width=25)
+        current_entry.pack()
+
+        new_label = tk.Label(change_pw_page, text="Neues Passwort:")
+        new_label.pack(pady=(10, 0))
+        new_entry = tk.Entry(change_pw_page, show='*', width=25)
+        new_entry.pack()
+
+        confirm_label = tk.Label(change_pw_page, text="Neues Passwort bestätigen:")
+        confirm_label.pack(pady=(10, 0))
+        confirm_entry = tk.Entry(change_pw_page, show='*', width=25)
+        confirm_entry.pack()
+
+        show_pw_var = tk.IntVar()
+
+        def toggle_pw():
+            show = '' if show_pw_var.get() else '*'
+            new_entry.config(show=show)
+            confirm_entry.config(show=show)
+
+        show_pw = tk.Checkbutton(change_pw_page, text="Passwörter zeigen", variable=show_pw_var, command=toggle_pw)
+        show_pw.pack()
+
+        button_frame = tk.Frame(change_pw_page)
+        button_frame.pack(pady=10)
+
+        def change_password():
+            current_password = current_entry.get()
+            new_password = new_entry.get()
+            confirm = confirm_entry.get()
+
+            db_user_password = self.db.tableSaves_GetSave(1)
+            db_user_password = self.encryption.Decrypt(db_user_password)
+
+            if current_password != db_user_password:
+                messagebox.showwarning("Fehler", "Aktuelles Passwort ist falsch.")
+                return
+            if not new_password or not confirm:
+                messagebox.showwarning("Fehler", "Bitte alle Felder ausfüllen.")
+                return
+            if new_password != confirm:
+                messagebox.showwarning("Fehler", "Neue Passwörter stimmen nicht überein.")
+                return
+
+            if self.toolHelper.UpdateUserPassword(new_password):
+                # Update password list
+                encrypted_value_list = self.db.tableValues_GetAllValues()
+                self.password_list = [
+                    (value.name, self.encryption.Decrypt(value.key))
+                    for value in encrypted_value_list
+                ]
+                self.update_password_list(self.listbox)
+
+                messagebox.showinfo("Erfolg", "Passwort wurde geändert.")
+            else:
+                messagebox.showerror("Fehler", "Das Passwort konnte nicht geändert werden!")
+
+            change_pw_page.destroy()
+
+        def cancel():
+            change_pw_page.destroy()
+
+        change_btn = tk.Button(button_frame, text="Ändern", command=change_password)
+        change_btn.pack(side="left", padx=5)
+
+        cancel_btn = tk.Button(button_frame, text="Abbrechen", command=cancel)
+        cancel_btn.pack(side="left", padx=5)
+
+        change_pw_page.protocol("WM_DELETE_WINDOW", change_pw_page.destroy)
 
     def logout(self, main_page):
         if messagebox.askyesno("Abmelden", "Wirklich abmelden?"):
@@ -195,6 +218,14 @@ class GUI:
             messagebox.showwarning("Fehler", "Bitte Seite und Passwort angeben.")
             return
 
+        if self.db.tableValues_GetValue(site):
+            messagebox.showwarning("Fehler", "Dieses Feld existiert bereits!")
+            return
+
+        password_encrypted = self.encryption.Encrypt(pw)
+        password_value = Value(0, site, password_encrypted)
+        self.db.CreateValue(password_value)
+
         self.password_list.append((site, pw))
         update_password_list()
         site_entry.delete(0, tk.END)
@@ -202,13 +233,11 @@ class GUI:
 
     def update_password_list(self, listbox):
         listbox.delete(0, tk.END)
-
         for site, pw in self.password_list:
             listbox.insert(tk.END, f"Seite: {site}   |   Passwort: {'*' * len(pw)}")
 
     def on_listbox_double_click(self, listbox, main_page):
         selection = listbox.curselection()
-
         if not selection:
             return
 
@@ -233,15 +262,11 @@ class GUI:
         show_pw_var = tk.IntVar()
 
         def toggle_edit_password():
-            if show_pw_var.get():
-                pw_entry_edit.config(show='')
-            else:
-                pw_entry_edit.config(show='*')
+            pw_entry_edit.config(show='' if show_pw_var.get() else '*')
 
         show_pw_check = tk.Checkbutton(edit_window, text="Passwort zeigen", variable=show_pw_var, command=toggle_edit_password)
         show_pw_check.pack(anchor="w", padx=20)
 
-        # Button zum Kopieren des Passworts
         def copy_password():
             edit_window.clipboard_clear()
             edit_window.clipboard_append(pw_entry_edit.get())
@@ -275,7 +300,3 @@ class GUI:
 
         delete_button = tk.Button(button_frame, text="Löschen", command=delete_entry, width=10)
         delete_button.pack(side="left", padx=5)
-
-# Initialisiert die GUI
-if __name__ == "__main__":
-    GUI()
