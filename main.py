@@ -1,7 +1,6 @@
 from Backend.Utils.DBManager import DBManager
 from Backend.Utils.Encryption import Encryption
 from Backend.Utils.ToolHelper import ToolHelper
-from Backend.Value import Value
 from Backend.ProgramSettings import ProgramSettings
 from GUI import GUI
 

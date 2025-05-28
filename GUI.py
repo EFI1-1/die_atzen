@@ -3,7 +3,6 @@ from tkinter import messagebox  # Dialoge
 from Backend.Utils.DBManager import DBManager
 from Backend.Utils.Encryption import Encryption
 from Backend.ProgramSettings import ProgramSettings
-from Backend.Value import Value
 from Backend.Utils.ToolHelper import ToolHelper
 
 # Funktion zum Zentrieren des Fensters auf dem Bildschirm
@@ -72,11 +71,8 @@ class GUI:
             db_user_password = self.encryption.Decrypt(db_user_password)
             if password == db_user_password:
                 ProgramSettings.CRYPT_KEY = db_user_password
-                encrypted_value_list = self.db.tableValues_GetAllValues()
-                self.password_list = [
-                    (value.name, self.encryption.Decrypt(value.key))
-                    for value in encrypted_value_list
-                ]
+                # Update password list
+                self.password_list = self.toolHelper.GetDecryptedPWList()
                 self.show_main_page()
             else:
                 messagebox.showwarning("Falsches Passwort", "Das eingegebene Passwort ist nicht korrekt!")
@@ -177,11 +173,7 @@ class GUI:
 
             if self.toolHelper.UpdateUserPassword(new_password):
                 # Update password list
-                encrypted_value_list = self.db.tableValues_GetAllValues()
-                self.password_list = [
-                    (value.name, self.encryption.Decrypt(value.key))
-                    for value in encrypted_value_list
-                ]
+                self.password_list = self.toolHelper.GetDecryptedPWList()
                 self.update_password_list(self.listbox)
 
                 messagebox.showinfo("Erfolg", "Passwort wurde geändert.")
@@ -223,8 +215,7 @@ class GUI:
             return
 
         password_encrypted = self.encryption.Encrypt(pw)
-        password_value = Value(0, site, password_encrypted)
-        self.db.CreateValue(password_value)
+        self.db.CreateValue(site, password_encrypted)
 
         self.password_list.append((site, pw))
         update_password_list()
@@ -249,9 +240,8 @@ class GUI:
 
         site_label = tk.Label(edit_window, text="Seite:")
         site_label.pack(pady=(15, 0), anchor="w", padx=20)
-        site_entry_edit = tk.Entry(edit_window, width=30)
-        site_entry_edit.pack(anchor="w", padx=20)
-        site_entry_edit.insert(0, site)
+        site_value_label = tk.Label(edit_window, text=site, width=30, anchor="w", justify="left")
+        site_value_label.pack(anchor="w", padx=20)
 
         pw_label = tk.Label(edit_window, text="Passwort:")
         pw_label.pack(pady=(10, 0), anchor="w", padx=20)
@@ -276,20 +266,32 @@ class GUI:
         copy_button.pack(anchor="w", padx=20)
 
         def save_changes():
-            new_site = site_entry_edit.get()
+            site = site_value_label.cget("text")
             new_pw = pw_entry_edit.get()
 
-            if not new_site or not new_pw:
-                messagebox.showwarning("Fehler", "Bitte Seite und Passwort angeben.")
+            if not new_pw:
+                messagebox.showwarning("Fehler", "Bitte Passwort angeben.")
                 return
 
-            self.password_list[index] = (new_site, new_pw)
-            self.update_password_list(listbox)
+            # Save value into database and check result
+            if self.db.tableValues_SaveValue(site, self.encryption.Encrypt(new_pw)):
+                self.password_list[index] = (site, new_pw) # Update password-list entry
+                self.update_password_list(listbox)
+                messagebox.showinfo("Erfolg", "Die Änderung wurde erfolgreich gespeichert")
+            else:
+                messagebox.showerror("Fehler", "Die Änderung konnte nicht gespeichert werden")
             edit_window.destroy()
 
         def delete_entry():
-            del self.password_list[index]
-            self.update_password_list(listbox)
+            site = self.password_list[index][0]
+
+            # Delete entry from database and check result
+            if self.db.tableValues_DeleteValue(site):
+                del self.password_list[index]                 # Delete entry from password-list
+                self.update_password_list(listbox)
+                messagebox.showinfo("Erfolg", "Der Eintrag wurde erfolgreich gelöscht.")
+            else:
+                messagebox.showerror("Fehler", "Der Eintrag konnte nicht gelöscht werden!")
             edit_window.destroy()
 
         button_frame = tk.Frame(edit_window)

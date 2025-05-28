@@ -1,7 +1,6 @@
 from Backend.Utils.DBManager import DBManager
 from Backend.Utils.Encryption import Encryption
 from Backend.ProgramSettings import ProgramSettings
-from Backend.Value import Value
 
 # Class to handle helping functions
 class ToolHelper:
@@ -68,18 +67,35 @@ class ToolHelper:
             bool: True if all values were successfully re-encrypted, False otherwise.
         """
 
-        all_values: Value = self.db.tableValues_GetAllValues()
-        for value in all_values:
-            # Decrypt value with old crypt key
+        all_values = self.db.tableValues_GetAllValues()
+        for name, key in all_values:
+            # Decrypt key with old crypt key
             ProgramSettings.CRYPT_KEY = crypt_key_old
-            value.key = self.encryption.Decrypt(value.key)
-            
-            # Encrypt value with new crypt key
+            decrypted_key = self.encryption.Decrypt(key)
+
+            # Encrypt key with new crypt key
             ProgramSettings.CRYPT_KEY = crypt_key_new
-            value.key = self.encryption.Encrypt(value.key)
+            encrypted_key = self.encryption.Encrypt(decrypted_key)
 
             # Update value in db
-            self.db.tableValues_SaveValue(value)
+            self.db.tableValues_SaveValue(name, encrypted_key)
         # Ensure crypt key is set to new user password
         ProgramSettings.CRYPT_KEY = crypt_key_new
         return True
+    
+    def GetDecryptedPWList(self) -> list[tuple]:
+        """
+        Retrieves all stored (site, encrypted_password) pairs from the database,
+        decrypts each password using the current encryption key, and returns
+        a list of (site, decrypted_password) tuples.
+
+        Returns:
+            list[tuple]: A list of tuples where each tuple contains:
+                - site (str): The site name.
+                - decrypted_password (str): The decrypted password for that site.
+        """
+        encrypted_value_list = self.db.tableValues_GetAllValues()
+        return [
+            (name, self.encryption.Decrypt(key))
+            for name, key in encrypted_value_list
+        ]
