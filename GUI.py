@@ -5,6 +5,7 @@ from Backend.Utils.Encryption import Encryption
 from Backend.ProgramSettings import ProgramSettings
 from Backend.Utils.ToolHelper import ToolHelper
 from Backend.Utils.PasswordSafety import PasswordSafety
+from Backend.Utils.PasswordGeneration import PasswordGeneration
 
 # Funktion zum Zentrieren des Fensters auf dem Bildschirm
 def center_window(window, width=300, height=180):
@@ -15,14 +16,14 @@ def center_window(window, width=300, height=180):
     y = (screen_height // 2) - (height // 2)
     window.geometry(f"{width}x{height}+{x}+{y}")
 
-
 class GUI:
     # Erstellt das Hauptfenster und initialisiert die GUI
-    def __init__(self, dbManager: DBManager, encryption: Encryption, toolHelper: ToolHelper, passwordSafety: PasswordSafety):
+    def __init__(self, dbManager: DBManager, encryption: Encryption, toolHelper: ToolHelper, passwordSafety: PasswordSafety, passwordGeneration: PasswordGeneration):
         self.db = dbManager
         self.encryption = encryption
         self.toolHelper = toolHelper
         self.passwordSafety = passwordSafety
+        self.passwordGeneration = passwordGeneration
         self.show_password_var = None
         self.password_entry = None
         self.root = tk.Tk()
@@ -82,18 +83,15 @@ class GUI:
     def show_main_page(self):
         main_page = tk.Toplevel(self.root)
         main_page.title("Passwort Manager")
-        center_window(main_page, 600, 280)
+        center_window(main_page, 600, 420)  # Höhe etwas erhöht für Buttons unten
         main_page.lift()
         main_page.focus_force()
         self.root.withdraw()
 
-        change_pw_btn = tk.Button(main_page, text="Passwort ändern", command=lambda: self.open_change_password_page(main_page), width=20)
-        change_pw_btn.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
-
         main_page.protocol("WM_DELETE_WINDOW", lambda: self.on_main_page_close(main_page))
 
         add_frame = tk.Frame(main_page)
-        add_frame.pack(pady=20)
+        add_frame.pack(pady=20, fill='x')
 
         site_label = tk.Label(add_frame, text="Seite:")
         site_label.grid(row=0, column=0, padx=5)
@@ -107,25 +105,54 @@ class GUI:
         pw_entry = tk.Entry(add_frame, width=20, show='*')
         pw_entry.grid(row=0, column=3, padx=5)
 
+        length_label = tk.Label(add_frame, text="Länge:")
+        length_label.grid(row=1, column=2, sticky="w", padx=5, pady=(5,0))
+
+        length_slider = tk.Scale(add_frame, from_=8, to=32, orient=tk.HORIZONTAL)
+        length_slider.grid(row=1, column=3, sticky="w", padx=5, pady=(5,0))
+
+        generate_button = tk.Button(add_frame, text="Generieren", command=lambda: self.generate_password(length_slider.get(), pw_entry), width=10)
+        generate_button.grid(row=1, column=4, sticky="w", padx=5, pady=(5,0))
+
         plus_button = tk.Button(add_frame, text="+", command=lambda: self.add_password(site_entry, pw_entry, lambda: self.update_password_list(self.listbox)), width=3)
-        plus_button.grid(row=0, column=4, padx=5)
+        plus_button.grid(row=0, column=5, padx=5)
 
-        list_frame = tk.Frame(main_page)
-        list_frame.pack(pady=(0, 10))
+        # Frame für Passwort-Liste und Buttons unten
+        content_frame = tk.Frame(main_page)
+        content_frame.pack(fill='both', expand=True, padx=10, pady=(0,10))
 
-        self.listbox = tk.Listbox(list_frame, width=60)
-        self.listbox.pack()
+        # Listbox mit Scrollbar im content_frame
+        list_frame = tk.Frame(content_frame)
+        list_frame.pack(fill='both', expand=True)
+
+        scrollbar = tk.Scrollbar(list_frame, orient='vertical')
+        self.listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.listbox.yview)
+        scrollbar.pack(side='right', fill='y')
+        self.listbox.pack(side='left', fill='both', expand=True)
 
         self.update_password_list(self.listbox)
         self.listbox.bind('<Double-Button-1>', lambda event: self.on_listbox_double_click(self.listbox, main_page))
 
-        logout_button = tk.Button(main_page, text="Abmelden", command=lambda: self.logout(main_page), width=20)
-        logout_button.place(relx=0.0, rely=1.0, anchor="sw", x=10, y=-10)
+        # Frame für die unteren Buttons "Abmelden" (links) und "Passwort ändern" (rechts)
+        buttons_frame = tk.Frame(content_frame)
+        buttons_frame.pack(fill='x')
+
+        logout_button = tk.Button(buttons_frame, text="Abmelden", command=lambda: self.logout(main_page), width=20)
+        logout_button.pack(side='left', anchor='w')
+
+        change_pw_btn = tk.Button(buttons_frame, text="Passwort ändern", command=lambda: self.open_change_password_page(main_page), width=20)
+        change_pw_btn.pack(side='right', anchor='e')
+
+    def generate_password(self, length, pw_entry):
+        generated_password = self.passwordGeneration.Generate(length)
+        pw_entry.delete(0, tk.END)
+        pw_entry.insert(0, generated_password)
 
     def open_change_password_page(self, main_page):
         change_pw_page = tk.Toplevel(main_page)
         change_pw_page.title("Passwort ändern")
-        center_window(change_pw_page, 350, 280)
+        center_window(change_pw_page, 400, 320)
 
         current_label = tk.Label(change_pw_page, text="Aktuelles Passwort:")
         current_label.pack(pady=(20, 0))
@@ -136,6 +163,22 @@ class GUI:
         new_label.pack(pady=(10, 0))
         new_entry = tk.Entry(change_pw_page, show='*', width=25)
         new_entry.pack()
+
+        length_gen_frame = tk.Frame(change_pw_page)
+        length_gen_frame.pack(anchor="w", padx=20, pady=(5, 0), fill='x')
+
+        length_label = tk.Label(length_gen_frame, text="Länge:")
+        length_label.pack(side="left")
+
+        length_slider = tk.Scale(length_gen_frame, from_=8, to=32, orient=tk.HORIZONTAL)
+        length_slider.pack(side="left", padx=(5, 10))
+
+        generate_button = tk.Button(length_gen_frame, text="Generieren", width=10)
+        generate_button.pack(side="left")
+
+        def generate_in_edit():
+            self.generate_password(length_slider.get(), new_entry)
+        generate_button.config(command=generate_in_edit)
 
         confirm_label = tk.Label(change_pw_page, text="Neues Passwort bestätigen:")
         confirm_label.pack(pady=(10, 0))
@@ -218,7 +261,7 @@ class GUI:
             return
 
         # Check if entered site already exists in the database
-        if self.db.tableValues_GetValue(site):
+        if not self.db.tableValues_GetValue(site) == "":
             messagebox.showwarning("Fehler", "Dieses Feld existiert bereits!")
             return
 
@@ -244,7 +287,7 @@ class GUI:
         site, pw = self.password_list[index]
         edit_window = tk.Toplevel(main_page)
         edit_window.title("Passwort bearbeiten")
-        center_window(edit_window, 350, 200)
+        center_window(edit_window, 400, 250)
 
         site_label = tk.Label(edit_window, text="Seite:")
         site_label.pack(pady=(15, 0), anchor="w", padx=20)
@@ -256,6 +299,22 @@ class GUI:
         pw_entry_edit = tk.Entry(edit_window, width=30, show='*')
         pw_entry_edit.pack(anchor="w", padx=20)
         pw_entry_edit.insert(0, pw)
+
+        length_gen_frame = tk.Frame(edit_window)
+        length_gen_frame.pack(anchor="w", padx=20, pady=(5, 0), fill='x')
+
+        length_label = tk.Label(length_gen_frame, text="Länge:")
+        length_label.pack(side="left")
+
+        length_slider = tk.Scale(length_gen_frame, from_=8, to=32, orient=tk.HORIZONTAL)
+        length_slider.pack(side="left", padx=(5, 10))
+
+        generate_button = tk.Button(length_gen_frame, text="Generieren", width=10)
+        generate_button.pack(side="left")
+
+        def generate_in_edit():
+            self.generate_password(length_slider.get(), pw_entry_edit)
+        generate_button.config(command=generate_in_edit)
 
         show_pw_var = tk.IntVar()
 
@@ -283,7 +342,7 @@ class GUI:
 
             # Save value into database and check result
             if self.db.tableValues_SaveValue(site, self.encryption.Encrypt(new_pw)):
-                self.password_list[index] = (site, new_pw) # Update password-list entry
+                self.password_list[index] = (site, new_pw)  # Update password-list entry
                 self.update_password_list(listbox)
                 messagebox.showinfo("Erfolg", "Die Änderung wurde erfolgreich gespeichert")
             else:
@@ -295,7 +354,7 @@ class GUI:
 
             # Delete entry from database and check result
             if self.db.tableValues_DeleteValue(site):
-                del self.password_list[index]                 # Delete entry from password-list
+                del self.password_list[index]  # Delete entry from password-list
                 self.update_password_list(listbox)
                 messagebox.showinfo("Erfolg", "Der Eintrag wurde erfolgreich gelöscht.")
             else:
@@ -310,3 +369,4 @@ class GUI:
 
         delete_button = tk.Button(button_frame, text="Löschen", command=delete_entry, width=10)
         delete_button.pack(side="left", padx=5)
+

@@ -43,7 +43,6 @@ class DBManager:
         create_saves_table = """
             CREATE TABLE IF NOT EXISTS saves (
                 SaveId INTEGER PRIMARY KEY AUTOINCREMENT,
-                ValueId INTEGER NOT NULL,
                 Name TEXT NOT NULL,
                 Value TEXT NOT NULL
             )
@@ -100,7 +99,7 @@ class DBManager:
     def tableValues_GetValue(self, name: str) -> str:
         resultValue = ""
         update_query = 'SELECT * FROM "values" WHERE Name = ?'
-        cursor = self.connection.execute(update_query, (name))
+        cursor = self.connection.execute(update_query, (name,))  # Note the tuple for parameter
         self.connection.commit()
         for row in cursor:
             resultValue = row[0]
