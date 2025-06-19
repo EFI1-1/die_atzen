@@ -300,7 +300,7 @@ class GUI:
         if not self.passwordSafety.Check(pw):
             return
 
-        if self.db.tableValues_GetValue(site) != "":
+        if self.db.tableValues_GetValue(site) == "":
             messagebox.showwarning("Fehler", "Dieses Feld existiert bereits!")
             return
 
